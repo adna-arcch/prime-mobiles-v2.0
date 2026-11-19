@@ -1,0 +1,155 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Shared validation primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['fullName', 'username', 'password', 'phoneNumber', 'role', 'createdAt'])
+        && data.keys().hasOnly(['fullName', 'username', 'password', 'phoneNumber', 'role', 'createdAt'])
+        && data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 120
+        && data.username is string && data.username.size() >= 1 && data.username.size() <= 60 && data.username.matches('^[a-z0-9_.-]+$')
+        && data.password is string && data.password.size() >= 4 && data.password.size() <= 128
+        && data.phoneNumber is string && data.phoneNumber.size() >= 4 && data.phoneNumber.size() <= 40
+        && data.role in ['Admin', 'Staff']
+        && data.createdAt is string && data.createdAt.size() >= 1 && data.createdAt.size() <= 60;
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['name', 'category', 'costPrice', 'sellingPrice', 'stockQuantity', 'approvalStatus', 'createdBy', 'createdByRole', 'createdAt'])
+        && data.keys().hasOnly(['name', 'category', 'costPrice', 'sellingPrice', 'stockQuantity', 'previousStockQuantity', 'approvalStatus', 'createdBy', 'createdByRole', 'createdAt', 'lastUpdatedBy', 'lastUpdatedAt'])
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 150
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 80
+        && data.costPrice is number && data.costPrice >= 0 && data.costPrice <= 100000000
+        && data.sellingPrice is number && data.sellingPrice >= 0 && data.sellingPrice <= 100000000
+        && data.stockQuantity is number && data.stockQuantity >= 0 && data.stockQuantity <= 10000000
+        && (!('previousStockQuantity' in data) || (data.previousStockQuantity is number && data.previousStockQuantity >= 0 && data.previousStockQuantity <= 10000000))
+        && data.approvalStatus in ['Approved', 'Pending Approval', 'Rejected']
+        && data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 120
+        && data.createdByRole in ['Admin', 'Staff']
+        && data.createdAt is string && data.createdAt.size() >= 1 && data.createdAt.size() <= 60
+        && (!('lastUpdatedBy' in data) || (data.lastUpdatedBy is string && data.lastUpdatedBy.size() <= 120))
+        && (!('lastUpdatedAt' in data) || (data.lastUpdatedAt is string && data.lastUpdatedAt.size() <= 80));
+    }
+
+    function isValidAttendance(data) {
+      return data.keys().hasAll(['staffId', 'staffName', 'staffUsername', 'date', 'month', 'time', 'workType', 'createdAt'])
+        && data.keys().hasOnly(['staffId', 'staffName', 'staffUsername', 'date', 'month', 'time', 'workType', 'createdAt'])
+        && data.staffId is string && data.staffId.size() >= 1 && data.staffId.size() <= 128
+        && data.staffName is string && data.staffName.size() >= 1 && data.staffName.size() <= 120
+        && data.staffUsername is string && data.staffUsername.size() >= 1 && data.staffUsername.size() <= 60
+        && data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.month is string && data.month.matches('^\\d{4}-\\d{2}$')
+        && data.time is string && data.time.size() >= 1 && data.time.size() <= 40
+        && data.workType in ['Shop Work', 'Work From Home']
+        && data.createdAt is string && data.createdAt.size() >= 1 && data.createdAt.size() <= 60;
+    }
+
+    function isValidStoreSettings(data) {
+      return data.keys().hasAll(['businessName', 'phoneNumber', 'lowStockLimit', 'discountPercent', 'discountTitle', 'discountActive', 'updatedAt'])
+        && data.keys().hasOnly(['businessName', 'phoneNumber', 'lowStockLimit', 'discountPercent', 'discountTitle', 'discountActive', 'updatedAt', 'updatedBy'])
+        && data.businessName is string && data.businessName.size() >= 1 && data.businessName.size() <= 120
+        && data.phoneNumber is string && data.phoneNumber.size() >= 1 && data.phoneNumber.size() <= 40
+        && data.lowStockLimit is number && data.lowStockLimit >= 1 && data.lowStockLimit <= 100000
+        && data.discountPercent is number && data.discountPercent >= 0 && data.discountPercent <= 100
+        && data.discountTitle is string && data.discountTitle.size() <= 100
+        && data.discountActive is bool
+        && data.updatedAt is string && data.updatedAt.size() >= 1 && data.updatedAt.size() <= 60
+        && (!('updatedBy' in data) || (data.updatedBy is string && data.updatedBy.size() <= 120));
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['productId', 'productName', 'stockQuantity', 'message', 'severity', 'createdAt', 'dismissed'])
+        && data.keys().hasOnly(['productId', 'productName', 'stockQuantity', 'message', 'severity', 'createdAt', 'dismissed'])
+        && data.productId is string && data.productId.size() >= 1 && data.productId.size() <= 128
+        && data.productName is string && data.productName.size() >= 1 && data.productName.size() <= 150
+        && data.stockQuantity is number && data.stockQuantity >= 0 && data.stockQuantity <= 10000000
+        && data.message is string && data.message.size() >= 1 && data.message.size() <= 300
+        && data.severity in ['LOW_STOCK', 'OUT_OF_STOCK']
+        && data.createdAt is string && data.createdAt.size() >= 1 && data.createdAt.size() <= 60
+        && data.dismissed is bool;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['customerName', 'productId', 'productName', 'quantity', 'unitSellingPrice', 'totalAmount', 'status', 'markedBy', 'markedByUsername', 'createdAt'])
+        && data.keys().hasOnly(['customerName', 'productId', 'productName', 'quantity', 'unitSellingPrice', 'totalAmount', 'status', 'markedBy', 'markedByUsername', 'createdAt', 'deliveredAt'])
+        && data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 120
+        && data.productId is string && data.productId.size() >= 1 && data.productId.size() <= 128
+        && data.productName is string && data.productName.size() >= 1 && data.productName.size() <= 150
+        && data.quantity is number && data.quantity >= 1 && data.quantity <= 1000000
+        && data.unitSellingPrice is number && data.unitSellingPrice >= 0 && data.unitSellingPrice <= 100000000
+        && data.totalAmount is number && data.totalAmount >= 0 && data.totalAmount <= 10000000000
+        && data.status in ['Pending', 'Delivered']
+        && data.markedBy is string && data.markedBy.size() >= 1 && data.markedBy.size() <= 120
+        && data.markedByUsername is string && data.markedByUsername.size() >= 1 && data.markedByUsername.size() <= 60
+        && data.createdAt is string && data.createdAt.size() >= 1 && data.createdAt.size() <= 60
+        && (!('deliveredAt' in data) || (data.deliveredAt is string && data.deliveredAt.size() <= 60));
+    }
+
+    // Connection health check path
+    match /test/{docId} {
+      allow get: if docId == 'connection';
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId);
+      allow list: if request.time != null;
+      allow create: if isValidId(userId) && isValidUser(incoming());
+      allow update: if isValidId(userId) && isValidUser(incoming())
+        && incoming().createdAt == resource.data.createdAt
+        && incoming().diff(resource.data).affectedKeys().hasOnly(['role', 'fullName', 'phoneNumber']);
+      allow delete: if isValidId(userId) && resource != null;
+    }
+
+    match /products/{productId} {
+      allow get: if isValidId(productId);
+      allow list: if request.time != null;
+      allow create: if isValidId(productId) && isValidProduct(incoming());
+      allow update: if isValidId(productId) && isValidProduct(incoming())
+        && incoming().createdAt == resource.data.createdAt
+        && incoming().diff(resource.data).affectedKeys().hasOnly(['name', 'category', 'costPrice', 'sellingPrice', 'stockQuantity', 'previousStockQuantity', 'approvalStatus', 'lastUpdatedBy', 'lastUpdatedAt']);
+      allow delete: if isValidId(productId) && resource != null;
+    }
+
+    match /attendance/{attendanceId} {
+      allow get: if isValidId(attendanceId);
+      allow list: if request.time != null;
+      allow create: if isValidId(attendanceId) && isValidAttendance(incoming());
+      allow delete: if isValidId(attendanceId) && resource != null;
+    }
+
+    match /settings/{settingId} {
+      allow get: if isValidId(settingId);
+      allow list: if request.time != null;
+      allow create, update: if isValidId(settingId) && isValidStoreSettings(incoming());
+    }
+
+    match /notifications/{notificationId} {
+      allow get: if isValidId(notificationId);
+      allow list: if request.time != null;
+      allow create, update: if isValidId(notificationId) && isValidNotification(incoming());
+      allow delete: if isValidId(notificationId) && resource != null;
+    }
+
+    match /orders/{orderId} {
+      allow get: if isValidId(orderId);
+      allow list: if request.time != null;
+      allow create: if isValidId(orderId) && isValidOrder(incoming());
+      allow update: if isValidId(orderId) && isValidOrder(incoming())
+        && incoming().createdAt == resource.data.createdAt
+        && incoming().diff(resource.data).affectedKeys().hasOnly(['status', 'deliveredAt']);
+      allow delete: if isValidId(orderId) && resource != null;
+    }
+  }
+}

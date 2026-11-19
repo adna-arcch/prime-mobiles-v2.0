@@ -1,0 +1,6 @@
+{
+  "name": "Prime Mobiles",
+  "description": "Online wholesale staff management, attendance, inventory, and live stock alerts for Prime Mobiles.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
